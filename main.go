@@ -51,7 +51,7 @@ func initDatabase() *pgxpool.Pool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := conn.Ping(ctx); err != nil {
+	if err = conn.Ping(ctx); err != nil {
 		log.Fatalf("Database ping failed: %v", err)
 	}
 

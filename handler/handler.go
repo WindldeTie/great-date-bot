@@ -51,18 +51,81 @@ func (h *Handler) Start(debug bool) {
 
 func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 	if update.Message != nil {
-		h.forwardToAdmin(update)
-		switch update.Message.Text {
+		// h.forwardToAdmin(update)
+		command := strings.TrimSpace(update.Message.Text)
+		msgArr := strings.Split(command, " ")
+		switch msgArr[0] {
 		case "/start":
 			h.handleStart(update)
 			return
 		case "Узнать время 🤫":
 			log.Printf("Пользователь: %s с id: %d, решил посмотреть сколько осталось до великой даты\n",
 				update.Message.From.UserName, update.Message.From.ID)
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID,
+				fmt.Sprintf("Пользователь: %s с id: %d, решил посмотреть сколько осталось до великой даты\n",
+					update.Message.From.UserName, update.Message.From.ID))
+			h.bot.Send(msg)
 			h.handleTime(update)
 			return
+		case "delete":
+			log.Println("Удаление пользователя...")
+
+			userID, err := strconv.Atoi(msgArr[1])
+			if err != nil {
+				log.Println("error converting userID to int", err)
+			}
+
+			err = h.userRepo.DeleteUser(context.Background(), int64(userID))
+			if err != nil {
+				log.Println("error deleteUser: ", err)
+			}
+			log.Println("Пользователь удален")
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Пользователь удален")
+			msg.ReplyToMessageID = update.Message.MessageID
+			h.bot.Send(msg)
+			return
+		case "list":
+			users, err := h.userRepo.GetAllUsers(context.Background())
+			if err != nil {
+				log.Println("error getAllUsers: ", err)
+			}
+
+			log.Println("Список пользователей:")
+			for _, user := range users {
+				h.sendUser(user, update)
+			}
+			return
+		case "get":
+			userID, err := strconv.Atoi(msgArr[1])
+			if err != nil {
+				log.Println("error converting userID to int", err)
+			}
+			user, err := h.userRepo.GetUser(context.Background(), int64(userID))
+			if err != nil {
+				log.Println("error getUser: ", err)
+			}
+			h.sendUser(*user, update)
+			return
+		case "exists":
+			userID, err := strconv.Atoi(msgArr[1])
+			if err != nil {
+				log.Println("error converting userID to int", err)
+			}
+			exist := h.userRepo.UserExists(context.Background(), int64(userID))
+			if exist {
+				log.Println("Пользователь существует")
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Пользователь существует")
+				msg.ReplyToMessageID = update.Message.MessageID
+				h.bot.Send(msg)
+			} else {
+				log.Println("Пользователь не существует")
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Пользователь не существует")
+				msg.ReplyToMessageID = update.Message.MessageID
+				h.bot.Send(msg)
+			}
+			return
 		default:
-			log.Printf("Пользователь: %s с id: %d, решил написать: %s \n",
+			log.Printf("Пользователь: %s с id: %d, решил написать: %s\n",
 				update.Message.From.UserName, update.Message.From.ID, update.Message.Text)
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Неизвестная команда")
 			h.bot.Send(msg)
@@ -161,6 +224,67 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%02d дней, %02d часов, %02d минут, %02d секунд", days, hours, minutesInt, secondsInt)
 }
 
+func (h *Handler) forwardToAdmin(update tgbotapi.Update) {
+	adminChatID := int64(5120614747)
+	infoText := formatMessageForAdmin(update.Message)
+	if update.Message.From.ID == adminChatID {
+		return
+	} else {
+		msg := tgbotapi.NewMessage(adminChatID, infoText)
+		h.bot.Send(msg)
+	}
+}
+
+func formatMessageForAdmin(message *tgbotapi.Message) string {
+	return fmt.Sprintf(
+		"📩 Новое сообщение от пользователя:\n"+
+			"👤 Username: @%s\n"+
+			"👤 Имя: %s %s\n"+
+			"📝 Текст: %s\n"+
+			"⏰ Время: %s",
+		message.From.UserName,
+		message.From.FirstName,
+		message.From.LastName,
+		message.Text,
+		message.Time().Format("2006-01-02 15:04:05"),
+	)
+}
+
+func printUser(user model.User) {
+	fmt.Printf("Имя: %s, id: %d, count: %d \n", user.Username, user.ID, user.Count)
+}
+
+func (h *Handler) sendUser(user model.User, update tgbotapi.Update) {
+	msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Имя: %s, id: %d, count: %d \n",
+		user.Username, user.ID, user.Count))
+	h.bot.Send(msg)
+}
+
+//func (h *Handler) handlePhoto(message *tgbotapi.Message) {
+//	// message.Photo уже является срезом, не нужно разыменовывать *
+//	adminChatID := int64(5120614747)
+//	if len(message.Photo) == 0 {
+//		return
+//	}
+//
+//	for _, photo := range message.Photo {
+//		photoConfig := tgbotapi.NewPhoto(adminChatID, tgbotapi.FileID(photo.FileID))
+//		caption := fmt.Sprintf(
+//			"📸 Фото от: %s %s (@%s)\nID: %d",
+//			message.From.FirstName,
+//			message.From.LastName,
+//			message.From.UserName,
+//			message.From.ID,
+//		)
+//		photoConfig.Caption = caption
+//
+//		_, err := h.bot.Send(photoConfig)
+//		if err != nil {
+//			log.Printf("Ошибка отправки фото: %v", err)
+//		}
+//	}
+//}
+
 //func (h *Handler) console() {
 //	reader := bufio.NewReader(os.Stdin)
 //	for {
@@ -218,57 +342,6 @@ func formatDuration(d time.Duration) string {
 //			}
 //		default:
 //			log.Printf("Неизвестная команда: %s \n", command)
-//		}
-//	}
-//}
-
-func (h *Handler) forwardToAdmin(update tgbotapi.Update) {
-	adminChatID := int64(5120614747)
-	infoText := formatMessageForAdmin(update.Message)
-	msg := tgbotapi.NewMessage(adminChatID, infoText)
-	h.bot.Send(msg)
-}
-
-func formatMessageForAdmin(message *tgbotapi.Message) string {
-	return fmt.Sprintf(
-		"📩 Новое сообщение от пользователя:\n"+
-			"👤 Username: @%s\n"+
-			"👤 Имя: %s %s\n"+
-			"📝 Текст: %s\n"+
-			"⏰ Время: %s",
-		message.From.UserName,
-		message.From.FirstName,
-		message.From.LastName,
-		message.Text,
-		message.Time().Format("2006-01-02 15:04:05"),
-	)
-}
-
-func printUser(user model.User) {
-	fmt.Printf("Имя: %s, id: %d, count: %d \n", user.Username, user.ID, user.Count)
-}
-
-//func (h *Handler) handlePhoto(message *tgbotapi.Message) {
-//	// message.Photo уже является срезом, не нужно разыменовывать *
-//	adminChatID := int64(5120614747)
-//	if len(message.Photo) == 0 {
-//		return
-//	}
-//
-//	for _, photo := range message.Photo {
-//		photoConfig := tgbotapi.NewPhoto(adminChatID, tgbotapi.FileID(photo.FileID))
-//		caption := fmt.Sprintf(
-//			"📸 Фото от: %s %s (@%s)\nID: %d",
-//			message.From.FirstName,
-//			message.From.LastName,
-//			message.From.UserName,
-//			message.From.ID,
-//		)
-//		photoConfig.Caption = caption
-//
-//		_, err := h.bot.Send(photoConfig)
-//		if err != nil {
-//			log.Printf("Ошибка отправки фото: %v", err)
 //		}
 //	}
 //}
