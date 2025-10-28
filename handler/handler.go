@@ -77,13 +77,17 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 					fmt.Sprintf("<a href=\"tg://user?id=%d\">Этот пользователь хотел посмотреть сколько осталось до великой даты</a>",
 						update.Message.From.ID))
 				info.ParseMode = tgbotapi.ModeHTML
-				// [inline mention of a user](tg://user?id=123456789)
 				h.bot.Send(info)
+
 				info2 := tgbotapi.NewMessage(adminID,
 					fmt.Sprintf("[Этот пользователь хотел посмотреть сколько осталось до великой даты](tg://user?id=%d)",
 						update.Message.From.ID))
 				info2.ParseMode = tgbotapi.ModeMarkdownV2
 				h.bot.Send(info2)
+
+				msg := tgbotapi.NewMessage(adminID, "[Тестовая ссылка](tg://user?id=848109671)")
+				msg.ParseMode = tgbotapi.ModeMarkdownV2
+				h.bot.Send(msg)
 			}
 			return
 		case "delete":
