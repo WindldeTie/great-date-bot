@@ -86,25 +86,15 @@ func checkEnvVariables() {
 }
 
 // Функция подключения к базе данных
+// Функция подключения к базе данных
 func connectToDatabase(databaseURL string) (*pgxpool.Pool, error) {
 	// Исправить URL если нужно
 	if strings.HasPrefix(databaseURL, "postgres://") {
 		databaseURL = strings.Replace(databaseURL, "postgres://", "postgresql://", 1)
 	}
 
-	// Создать конфиг
-	config, err := pgxpool.ParseConfig(databaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
-	}
-
-	// Для Railway добавить SSL
-	if os.Getenv("RAILWAY_ENVIRONMENT") != "" {
-		config.ConnConfig.RuntimeParams["sslmode"] = "require"
-	}
-
-	// Подключиться
-	conn, err := pgxpool.NewWithConfig(context.Background(), config)
+	// Простое подключение без лишних настроек
+	conn, err := pgxpool.New(context.Background(), databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("create connection: %w", err)
 	}
