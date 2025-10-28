@@ -69,6 +69,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 				msg := tgbotapi.NewMessage(int64(5120614747),
 					fmt.Sprintf("Пользователь: %s с id: `%d`, решил посмотреть сколько осталось до великой даты\n",
 						update.Message.From.UserName, update.Message.From.ID))
+				msg.ParseMode = tgbotapi.ModeMarkdownV2
 				h.bot.Send(msg)
 			}
 			return
@@ -133,6 +134,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			log.Printf("Пользователь: %s с id: `%d`, решил написать: %s\n",
 				update.Message.From.UserName, update.Message.From.ID, update.Message.Text)
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Неизвестная команда")
+			msg.ParseMode = tgbotapi.ModeMarkdownV2
 			h.bot.Send(msg)
 			return
 		}
@@ -230,7 +232,8 @@ func formatDuration(d time.Duration) string {
 }
 
 func (h *Handler) sendUser(user model.User, update tgbotapi.Update) {
-	msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("username: @%s, id: `%d`, count: %d \n",
+	msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("username: @%s, id: `%d`, count: %d\n",
 		user.Username, user.ID, user.Count))
+	msg.ParseMode = tgbotapi.ModeMarkdownV2
 	h.bot.Send(msg)
 }
