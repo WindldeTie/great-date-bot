@@ -68,24 +68,9 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			if update.Message.From.ID == adminID {
 				return
 			} else {
-				//msg := tgbotapi.NewMessage(adminID,
-				//	fmt.Sprintf("Пользователь: %s с id: `%d`, решил посмотреть сколько осталось до великой даты\n",
-				//		update.Message.From.UserName, update.Message.From.ID))
-				//msg.ParseMode = tgbotapi.ModeMarkdownV2
-				//h.bot.Send(msg)
-				info := tgbotapi.NewMessage(adminID,
-					fmt.Sprintf("<a href=\"tg://user?id=%d\">Этот пользователь хотел посмотреть сколько осталось до великой даты</a>",
-						update.Message.From.ID))
-				info.ParseMode = tgbotapi.ModeHTML
-				h.bot.Send(info)
-
-				info2 := tgbotapi.NewMessage(adminID,
-					fmt.Sprintf("[Этот пользователь хотел посмотреть сколько осталось до великой даты](tg://user?id=%d)",
-						update.Message.From.ID))
-				info2.ParseMode = tgbotapi.ModeMarkdownV2
-				h.bot.Send(info2)
-
-				msg := tgbotapi.NewMessage(adminID, "[Тестовая ссылка](tg://user?id=848109671)")
+				msg := tgbotapi.NewMessage(adminID,
+					fmt.Sprintf("Пользователь: %s с id: `%d`, решил посмотреть сколько осталось до великой даты\n",
+						update.Message.From.UserName, update.Message.From.ID))
 				msg.ParseMode = tgbotapi.ModeMarkdownV2
 				h.bot.Send(msg)
 			}
