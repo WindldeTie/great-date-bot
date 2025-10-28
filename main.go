@@ -35,6 +35,12 @@ func main() {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
+	// Delete webhook if it exists (to allow getUpdates)
+	_, err = bot.Request(tgbotapi.DeleteWebhookConfig{DropPendingUpdates: true})
+	if err != nil {
+		log.Printf("Warning: failed to delete webhook: %v", err)
+	}
+
 	userRepo := repo.NewRepo(conn)
 
 	c := make(chan os.Signal, 1)
