@@ -21,6 +21,7 @@ type userRepository interface {
 	UserExists(ctx context.Context, userID int64) bool
 	GetAllUsers(ctx context.Context) ([]model.User, error)
 	DeleteUser(ctx context.Context, userID int64) error
+	GetUserByName(ctx context.Context, username string) (*model.User, error)
 }
 
 type Handler struct {
@@ -61,11 +62,15 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 		case "Узнать":
 			log.Printf("Пользователь: %s с id: %d, решил посмотреть сколько осталось до великой даты\n",
 				update.Message.From.UserName, update.Message.From.ID)
-			msg := tgbotapi.NewMessage(int64(5120614747),
-				fmt.Sprintf("Пользователь: %s с id: %d, решил посмотреть сколько осталось до великой даты\n",
-					update.Message.From.UserName, update.Message.From.ID))
-			h.bot.Send(msg)
 			h.handleTime(update)
+			if update.Message.From.ID == 5120614747 {
+				return
+			} else {
+				msg := tgbotapi.NewMessage(int64(5120614747),
+					fmt.Sprintf("Пользователь: %s с id: `%d`, решил посмотреть сколько осталось до великой даты\n",
+						update.Message.From.UserName, update.Message.From.ID))
+				h.bot.Send(msg)
+			}
 			return
 		case "delete":
 			log.Println("Удаление пользователя...")
@@ -125,7 +130,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			}
 			return
 		default:
-			log.Printf("Пользователь: %s с id: %d, решил написать: %s\n",
+			log.Printf("Пользователь: %s с id: `%d`, решил написать: %s\n",
 				update.Message.From.UserName, update.Message.From.ID, update.Message.Text)
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Неизвестная команда")
 			h.bot.Send(msg)
@@ -225,7 +230,7 @@ func formatDuration(d time.Duration) string {
 }
 
 func (h *Handler) sendUser(user model.User, update tgbotapi.Update) {
-	msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("username: @%s, id: %d, count: %d \n",
+	msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("username: @%s, id: `%d`, count: %d \n",
 		user.Username, user.ID, user.Count))
 	h.bot.Send(msg)
 }

@@ -63,6 +63,19 @@ func (r *Repo) GetUser(ctx context.Context, userID int64) (*model.User, error) {
 	return &user, err
 }
 
+func (r *Repo) GetUserByName(ctx context.Context, username string) (*model.User, error) {
+	user := model.User{Username: username}
+
+	row := r.db.QueryRow(ctx, "SELECT id, count FROM users WHERE username = $1", username)
+	err := row.Scan(&user.ID, &user.Count)
+	if errors.Is(err, pgx.ErrNoRows) {
+		log.Printf("user %s not found", username)
+		return &model.User{}, err
+	}
+
+	return &user, err
+}
+
 func (r *Repo) UserExists(ctx context.Context, userID int64) bool {
 	row := r.db.QueryRow(ctx, "SELECT count(*) FROM users WHERE id = $1", userID)
 	var count int
