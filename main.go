@@ -9,6 +9,7 @@ import (
 	"greateDateBot/handler"
 	"greateDateBot/handler/repo"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 )
@@ -35,13 +36,49 @@ func main() {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	// Delete webhook if it exists (to allow getUpdates)
-	_, err = bot.Request(tgbotapi.DeleteWebhookConfig{DropPendingUpdates: true})
-	if err != nil {
-		log.Printf("Warning: failed to delete webhook: %v", err)
+	userRepo := repo.NewRepo(conn)
+
+	// Получаем порт из переменных окружения Railway
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
-	userRepo := repo.NewRepo(conn)
+	// Получаем URL приложения из переменных окружения Railway
+	webhookURL := os.Getenv("RAILWAY_STATIC_URL")
+	if webhookURL == "" {
+		log.Println("RAILWAY_STATIC_URL not set, using polling mode")
+		// Если нет webhook URL, используем polling (для локальной разработки)
+		botHandler := handler.NewHandler(bot, userRepo)
+		botHandler.Start(false)
+		return
+	}
+
+	// Настраиваем webhook для продакшена
+	webhookConfig, err := tgbotapi.NewWebhook(webhookURL + "/webhook")
+	if err != nil {
+		log.Panic(err)
+	}
+	_, err = bot.Request(webhookConfig)
+	if err != nil {
+		log.Printf("Error setting webhook: %v", err)
+	}
+
+	info, err := bot.GetWebhookInfo()
+	if err != nil {
+		log.Printf("Error getting webhook info: %v", err)
+	}
+
+	log.Printf("Webhook Info: %+v", info)
+
+	// Создаем обработчик webhook
+	updates := bot.ListenForWebhook("/webhook")
+
+	// Запускаем HTTP сервер
+	go func() {
+		log.Printf("Starting server on port %s", port)
+		log.Fatal(http.ListenAndServe(":"+port, nil))
+	}()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -52,5 +89,9 @@ func main() {
 	}()
 
 	botHandler := handler.NewHandler(bot, userRepo)
-	botHandler.Start(false)
+
+	// Обрабатываем обновления через webhook
+	for update := range updates {
+		botHandler.HandleUpdate(update)
+	}
 }
