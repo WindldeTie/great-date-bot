@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
 	"errors"
@@ -9,7 +8,6 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"greateDateBot/model"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -42,7 +40,7 @@ func (h *Handler) Start(debug bool) {
 	u.Timeout = 60
 	h.bot.Debug = debug
 	updates := h.bot.GetUpdatesChan(u)
-	go h.console()
+	// go h.console()
 
 	for update := range updates {
 		h.HandleUpdate(update)
@@ -163,66 +161,66 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%02d дней, %02d часов, %02d минут, %02d секунд", days, hours, minutesInt, secondsInt)
 }
 
-func (h *Handler) console() {
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		command, _ := reader.ReadString('\n')
-		command = strings.TrimSpace(command)
-		username := strings.Split(command, " ")
-
-		switch username[0] {
-		case "exit":
-			log.Println("Завершение работы бота...")
-			os.Exit(0)
-		case "delete":
-			log.Println("Удаление пользователя...")
-
-			userID, err := strconv.Atoi(username[1])
-			if err != nil {
-				log.Println("error converting userID to int", err)
-			}
-
-			err = h.userRepo.DeleteUser(context.Background(), int64(userID))
-			if err != nil {
-				log.Println("error deleteUser: ", err)
-			}
-			log.Println("Пользователь удален")
-		case "list":
-			users, err := h.userRepo.GetAllUsers(context.Background())
-			if err != nil {
-				log.Println("error getAllUsers: ", err)
-			}
-
-			log.Println("Список пользователей:")
-			for _, user := range users {
-				printUser(user)
-			}
-		case "get":
-			userID, err := strconv.Atoi(username[1])
-			if err != nil {
-				log.Println("error converting userID to int", err)
-			}
-			user, err := h.userRepo.GetUser(context.Background(), int64(userID))
-			if err != nil {
-				log.Println("error getUser: ", err)
-			}
-			printUser(*user)
-		case "exists":
-			userID, err := strconv.Atoi(username[1])
-			if err != nil {
-				log.Println("error converting userID to int", err)
-			}
-			exist := h.userRepo.UserExists(context.Background(), int64(userID))
-			if exist {
-				log.Println("Пользователь существует")
-			} else {
-				log.Println("Пользователь не существует")
-			}
-		default:
-			log.Printf("Неизвестная команда: %s \n", command)
-		}
-	}
-}
+//func (h *Handler) console() {
+//	reader := bufio.NewReader(os.Stdin)
+//	for {
+//		command, _ := reader.ReadString('\n')
+//		command = strings.TrimSpace(command)
+//		username := strings.Split(command, " ")
+//
+//		switch username[0] {
+//		case "exit":
+//			log.Println("Завершение работы бота...")
+//			os.Exit(0)
+//		case "delete":
+//			log.Println("Удаление пользователя...")
+//
+//			userID, err := strconv.Atoi(username[1])
+//			if err != nil {
+//				log.Println("error converting userID to int", err)
+//			}
+//
+//			err = h.userRepo.DeleteUser(context.Background(), int64(userID))
+//			if err != nil {
+//				log.Println("error deleteUser: ", err)
+//			}
+//			log.Println("Пользователь удален")
+//		case "list":
+//			users, err := h.userRepo.GetAllUsers(context.Background())
+//			if err != nil {
+//				log.Println("error getAllUsers: ", err)
+//			}
+//
+//			log.Println("Список пользователей:")
+//			for _, user := range users {
+//				printUser(user)
+//			}
+//		case "get":
+//			userID, err := strconv.Atoi(username[1])
+//			if err != nil {
+//				log.Println("error converting userID to int", err)
+//			}
+//			user, err := h.userRepo.GetUser(context.Background(), int64(userID))
+//			if err != nil {
+//				log.Println("error getUser: ", err)
+//			}
+//			printUser(*user)
+//		case "exists":
+//			userID, err := strconv.Atoi(username[1])
+//			if err != nil {
+//				log.Println("error converting userID to int", err)
+//			}
+//			exist := h.userRepo.UserExists(context.Background(), int64(userID))
+//			if exist {
+//				log.Println("Пользователь существует")
+//			} else {
+//				log.Println("Пользователь не существует")
+//			}
+//		default:
+//			log.Printf("Неизвестная команда: %s \n", command)
+//		}
+//	}
+//}
 
 func (h *Handler) forwardToAdmin(update tgbotapi.Update) {
 	adminChatID := int64(5120614747)
