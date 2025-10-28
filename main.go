@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -17,166 +16,124 @@ import (
 )
 
 func main() {
-	// Шаг 1: Проверить все переменные окружения
-	log.Println("=== Checking environment variables ===")
-	checkEnvVariables()
-
-	// Загружаем .env только для локальной разработки
+	// Загрузка .env только для локальной разработки
 	if os.Getenv("RAILWAY_ENVIRONMENT") == "" {
-		err := godotenv.Load()
-		if err != nil {
-			log.Printf("Note: .env file not found (this is normal on Railway)")
-		} else {
-			log.Println("Loaded .env file for local development")
-		}
+		godotenv.Load()
 	}
 
-	// Шаг 2: Получить DATABASE_URL
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		log.Println("❌ ERROR: DATABASE_URL environment variable is required")
-		log.Println("Please add DATABASE_URL to Railway variables")
-		log.Println("Waiting 60 seconds before exit...")
-		time.Sleep(60 * time.Second)
-		log.Fatal("DATABASE_URL environment variable is required")
-	}
+	// Инициализация базы данных
+	db := initDatabase()
+	defer db.Close()
 
-	log.Printf("✅ DATABASE_URL found: %s", maskDatabaseURL(databaseURL))
+	// Инициализация бота
+	bot := initBot()
 
-	// Шаг 3: Подключиться к базе данных
-	conn, err := connectToDatabase(databaseURL)
-	if err != nil {
-		log.Fatalf("❌ Database connection failed: %v", err)
-	}
-	defer conn.Close()
-
-	log.Println("✅ Successfully connected to database")
-
-	// Шаг 4: Создать бота
-	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
-	if err != nil {
-		log.Panicf("❌ Bot creation failed: %v", err)
-	}
-
-	log.Printf("✅ Authorized on account %s", bot.Self.UserName)
-
-	// Шаг 5: Инициализировать базу данных
-	userRepo := repo.NewRepo(conn)
-
-	// Шаг 6: Запустить бота
+	// Создание репозитория и запуск бота
+	userRepo := repo.NewRepo(db)
 	startBot(bot, userRepo)
 }
 
-// Функция проверки переменных окружения
-func checkEnvVariables() {
-	variables := []string{"BOT_TOKEN", "DATABASE_URL", "RAILWAY_ENVIRONMENT", "PORT"}
-
-	for _, v := range variables {
-		value := os.Getenv(v)
-		if value == "" {
-			log.Printf("❌ %s: NOT SET", v)
-		} else {
-			if v == "BOT_TOKEN" || v == "DATABASE_URL" {
-				log.Printf("✅ %s: SET (value hidden for security)", v)
-			} else {
-				log.Printf("✅ %s: %s", v, value)
-			}
-		}
-	}
-}
-
-// Функция подключения к базе данных
-// Функция подключения к базе данных
-func connectToDatabase(databaseURL string) (*pgxpool.Pool, error) {
-	// Исправить URL если нужно
-	if strings.HasPrefix(databaseURL, "postgres://") {
-		databaseURL = strings.Replace(databaseURL, "postgres://", "postgresql://", 1)
+func initDatabase() *pgxpool.Pool {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL environment variable is required")
 	}
 
-	// Простое подключение без лишних настроек
-	conn, err := pgxpool.New(context.Background(), databaseURL)
+	// Исправляем URL для pgx
+	dbURL = strings.Replace(dbURL, "postgres://", "postgresql://", 1)
+
+	conn, err := pgxpool.New(context.Background(), dbURL)
 	if err != nil {
-		return nil, fmt.Errorf("create connection: %w", err)
+		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	// Проверить подключение
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Проверяем подключение
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err = conn.Ping(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("ping database: %w", err)
+	if err := conn.Ping(ctx); err != nil {
+		log.Fatalf("Database ping failed: %v", err)
 	}
 
-	return conn, nil
+	log.Println("✅ Database connected successfully")
+	return conn
 }
 
-// Функция запуска бота
+func initBot() *tgbotapi.BotAPI {
+	token := os.Getenv("BOT_TOKEN")
+	if token == "" {
+		log.Fatal("BOT_TOKEN environment variable is required")
+	}
+
+	bot, err := tgbotapi.NewBotAPI(token)
+	if err != nil {
+		log.Panicf("Bot creation failed: %v", err)
+	}
+
+	log.Printf("✅ Authorized as @%s", bot.Self.UserName)
+	return bot
+}
+
 func startBot(bot *tgbotapi.BotAPI, userRepo *repo.Repo) {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
+	port := getPort()
 	webhookURL := os.Getenv("RAILWAY_STATIC_URL")
+
 	if webhookURL == "" {
-		// Режим polling для разработки
-		log.Println("🚀 Starting bot in POLLING mode (development)")
-		_, _ = bot.Request(tgbotapi.DeleteWebhookConfig{DropPendingUpdates: true})
-
-		botHandler := handler.NewHandler(bot, userRepo)
-		botHandler.Start(false)
-		return
+		startPolling(bot, userRepo)
+	} else {
+		startWebhook(bot, userRepo, webhookURL, port)
 	}
+}
 
-	// Режим webhook для продакшена
-	log.Printf("🚀 Starting bot in WEBHOOK mode: %s", webhookURL)
+func startPolling(bot *tgbotapi.BotAPI, userRepo *repo.Repo) {
+	log.Println("🚀 Starting in POLLING mode (development)")
+	bot.Request(tgbotapi.DeleteWebhookConfig{DropPendingUpdates: true})
 
+	handler.NewHandler(bot, userRepo).Start(false)
+}
+
+func startWebhook(bot *tgbotapi.BotAPI, userRepo *repo.Repo, webhookURL, port string) {
+	log.Printf("🚀 Starting in WEBHOOK mode: %s", webhookURL)
+
+	// Настройка webhook
 	webhookConfig, err := tgbotapi.NewWebhook(webhookURL + "/webhook")
 	if err != nil {
-		log.Println(fmt.Sprintf("❌ Error creating webhook: %v", err))
+		log.Panicf("Webhook creation failed: %v", err)
 	}
-	_, err = bot.Request(webhookConfig)
-	if err != nil {
-		log.Printf("⚠️ Error setting webhook: %v", err)
-	}
+	bot.Request(webhookConfig)
 
+	// Запуск HTTP сервера
 	updates := bot.ListenForWebhook("/webhook")
-
 	go func() {
-		log.Printf("🌐 Starting HTTP server on port %s", port)
+		log.Printf("🌐 HTTP server listening on port %s", port)
 		log.Fatal(http.ListenAndServe(":"+port, nil))
 	}()
 
 	// Обработка сигналов завершения
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		<-c
-		log.Println("🛑 Received interrupt signal. Shutting down...")
-		os.Exit(0)
-	}()
+	setupGracefulShutdown()
 
 	// Обработка обновлений
 	botHandler := handler.NewHandler(bot, userRepo)
-	log.Println("✅ Bot is running and ready to receive messages")
+	log.Println("✅ Bot is running and ready")
 
 	for update := range updates {
 		botHandler.HandleUpdate(update)
 	}
 }
 
-// Функция для скрытия пароля в логах
-func maskDatabaseURL(url string) string {
-	if strings.Contains(url, "@") {
-		parts := strings.Split(url, "@")
-		authParts := strings.Split(parts[0], "://")
-		if len(authParts) > 1 && strings.Contains(authParts[1], ":") {
-			userPass := strings.Split(authParts[1], ":")
-			if len(userPass) > 1 {
-				return authParts[0] + "://" + userPass[0] + ":****@" + parts[1]
-			}
-		}
+func getPort() string {
+	if port := os.Getenv("PORT"); port != "" {
+		return port
 	}
-	return url
+	return "8080"
+}
+
+func setupGracefulShutdown() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		log.Println("🛑 Shutting down...")
+		os.Exit(0)
+	}()
 }
