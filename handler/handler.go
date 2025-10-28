@@ -71,6 +71,15 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 						update.Message.From.UserName, update.Message.From.ID))
 				msg.ParseMode = tgbotapi.ModeMarkdownV2
 				h.bot.Send(msg)
+				info := tgbotapi.NewMessage(update.Message.Chat.ID,
+					fmt.Sprintf("<a href=\"tg://user?id=%d\">inline mention of a user</a>'",
+						update.Message.From.ID))
+				info.ParseMode = tgbotapi.ModeHTML
+				h.bot.Send(info)
+				info2 := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("[inline mention of a user](tg://user?id=%d)",
+					update.Message.From.ID))
+				info2.ParseMode = tgbotapi.ModeMarkdownV2
+				h.bot.Send(info2)
 			}
 			return
 		case "delete":
