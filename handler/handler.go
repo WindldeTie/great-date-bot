@@ -100,7 +100,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 
 			log.Println("Список пользователей:")
 			for _, user := range users {
-				h.sendUser(user, update)
+				h.sendUser(&user)
 			}
 			return
 		case "get":
@@ -112,7 +112,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			if err != nil {
 				log.Println("error getUser: ", err)
 			}
-			h.sendUser(*user, update)
+			h.sendUser(user)
 			return
 		case "exists":
 			userID, err := strconv.Atoi(msgArr[1])
@@ -233,7 +233,7 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%02d дней, %02d часов, %02d минут, %02d секунд", days, hours, minutesInt, secondsInt)
 }
 
-func (h *Handler) sendUser(user model.User, update tgbotapi.Update) {
+func (h *Handler) sendUser(user *model.User) {
 	msg := tgbotapi.NewMessage(adminID, fmt.Sprintf("username: @%s, id: `%d`, count: %d\n",
 		user.Username, user.ID, user.Count))
 	msg.ParseMode = tgbotapi.ModeMarkdownV2
