@@ -96,6 +96,11 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			h.bot.Send(msg)
 			return
 		case "list":
+			if !h.isAdmin(update.Message.From.ID) {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
+				h.bot.Send(msg)
+				return
+			}
 			users, err := h.userRepo.GetAllUsers(context.Background())
 			if err != nil {
 				log.Println("error getAllUsers: ", err)
