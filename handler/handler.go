@@ -130,11 +130,19 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			userID, err := strconv.Atoi(msgArr[1])
 			log.Println("userID: ", userID)
 			if err != nil {
-				log.Println("error converting userID to int", err)
+				user, err := h.userRepo.GetUserByName(context.Background(), msgArr[1])
+				if err != nil {
+					log.Println("error getUserByName: ", err)
+					return
+				}
+				log.Printf("Пользователь: %s с id: %d, имеет счетчик: %d\n", user.Username, user.ID, user.Count)
+				h.sendUser(user)
+				return
 			}
 			user, err := h.userRepo.GetUser(context.Background(), int64(userID))
 			if err != nil {
 				log.Println("error getUser: ", err)
+				return
 			}
 			log.Printf("Пользователь: %s с id: %d, имеет счетчик: %d\n", user.Username, user.ID, user.Count)
 			h.sendUser(user)

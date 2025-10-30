@@ -64,10 +64,10 @@ func (r *Repo) GetUser(ctx context.Context, userID int64) (*model.User, error) {
 }
 
 func (r *Repo) GetUserByName(ctx context.Context, username string) (*model.User, error) {
-	user := model.User{Username: username}
+	user := model.User{}
 
-	row := r.db.QueryRow(ctx, "SELECT id, count FROM users WHERE username = $1", username)
-	err := row.Scan(&user.ID, &user.Count)
+	row := r.db.QueryRow(ctx, "SELECT id, username, count FROM users WHERE username = $1", username)
+	err := row.Scan(&user.ID, &user.Username, &user.Count)
 	if errors.Is(err, pgx.ErrNoRows) {
 		log.Printf("user %s not found", username)
 		return &model.User{}, err
