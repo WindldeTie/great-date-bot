@@ -108,11 +108,12 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			message.WriteString("📋 Список пользователей:\n\n")
 
 			for i, user := range users {
-				message.WriteString(fmt.Sprintf("%d. ID: %d, Username: @%s, Count: %d\n",
+				message.WriteString(fmt.Sprintf("%d. ID: `%d`, Username: @%s, Count: %d\n",
 					i+1, user.ID, user.Username, user.Count))
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, message.String())
+			msg.ParseMode = tgbotapi.ModeMarkdownV2
 			h.bot.Send(msg)
 			return
 		case "get":

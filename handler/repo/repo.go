@@ -51,10 +51,10 @@ func (r *Repo) UpdateUserCount(ctx context.Context, userID int64) error {
 }
 
 func (r *Repo) GetUser(ctx context.Context, userID int64) (*model.User, error) {
-	user := model.User{ID: userID}
+	user := model.User{}
 
-	row := r.db.QueryRow(ctx, "SELECT username, count FROM users WHERE id = $1", userID)
-	err := row.Scan(&user.Username, &user.Count)
+	row := r.db.QueryRow(ctx, "SELECT id, username, count FROM users WHERE id = $1", userID)
+	err := row.Scan(&user.ID, &user.Username, &user.Count)
 	if errors.Is(err, pgx.ErrNoRows) {
 		log.Printf("user %d not found", userID)
 		return &model.User{}, err
