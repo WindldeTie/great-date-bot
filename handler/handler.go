@@ -234,7 +234,7 @@ func formatDuration(d time.Duration) string {
 }
 
 func (h *Handler) sendUser(user model.User, update tgbotapi.Update) {
-	msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("username: @%s, id: `%d`, count: %d\n",
+	msg := tgbotapi.NewMessage(adminID, fmt.Sprintf("username: @%s, id: `%d`, count: %d\n",
 		user.Username, user.ID, user.Count))
 	msg.ParseMode = tgbotapi.ModeMarkdownV2
 	h.bot.Send(msg)
