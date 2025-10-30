@@ -67,9 +67,9 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			h.handleTime(update)
 			if update.Message.From.ID != adminID {
 				msg := tgbotapi.NewMessage(adminID,
-					fmt.Sprintf("Пользователь: %s с id: `%d`, решил посмотреть сколько осталось до великой даты\n",
+					fmt.Sprintf("Пользователь: @%s с id: <code>%d</code>, решил посмотреть сколько осталось до великой даты\n",
 						update.Message.From.UserName, update.Message.From.ID))
-				msg.ParseMode = tgbotapi.ModeMarkdownV2
+				msg.ParseMode = tgbotapi.ModeHTML
 				h.bot.Send(msg)
 			}
 			return
@@ -113,12 +113,12 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			message.WriteString("📋 Список пользователей:\n\n")
 
 			for i, user := range users {
-				message.WriteString(fmt.Sprintf("%d. ID: %d, Username: @%s, Count: %d\n",
+				message.WriteString(fmt.Sprintf("%d. ID: <code>%d</code>, Username: @%s, Count: %d\n",
 					i+1, user.ID, user.Username, user.Count))
 			}
 
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, message.String())
-			// msg.ParseMode = tgbotapi.ModeMarkdownV2
+			msg.ParseMode = tgbotapi.ModeHTML
 			h.bot.Send(msg)
 			return
 		case "get":
