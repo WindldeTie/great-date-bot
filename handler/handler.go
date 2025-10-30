@@ -113,7 +113,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			message.WriteString("📋 Список пользователей:\n\n")
 
 			for i, user := range users {
-				message.WriteString(fmt.Sprintf("%d. ID: `%d`, Username: @%s, Count: %d\n",
+				message.WriteString(fmt.Sprintf("%d. ID: %d, Username: @%s, Count: %d\n",
 					i+1, user.ID, user.Username, user.Count))
 			}
 
@@ -264,9 +264,10 @@ func formatDuration(d time.Duration) string {
 }
 
 func (h *Handler) sendUser(user *model.User) {
-	msg := tgbotapi.NewMessage(adminID, fmt.Sprintf("username: @%s, id: `%d`, count: %d\n",
-		user.Username, user.ID, user.Count))
-	// msg.ParseMode = tgbotapi.ModeMarkdownV2
+	msg := tgbotapi.NewMessage(adminID,
+		fmt.Sprintf("username: @%s, id: <code>%d</code>, count: %d",
+			user.Username, user.ID, user.Count))
+	msg.ParseMode = tgbotapi.ModeHTML
 	h.bot.Send(msg)
 }
 
