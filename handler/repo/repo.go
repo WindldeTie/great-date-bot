@@ -100,15 +100,25 @@ func (r *Repo) GetAllUsers(ctx context.Context) ([]model.User, error) {
 	var users []model.User
 	rows, err := r.db.Query(ctx, "SELECT id, username, count FROM users")
 	if err != nil {
+		log.Printf("GetAllUsers query error: %v", err)
 		return users, err
 	}
+
+	log.Printf("GetAllUsers: query executed successfully")
+
+	count := 0
 	for rows.Next() {
 		userRow := model.User{}
 		err = rows.Scan(&userRow.ID, &userRow.Username, &userRow.Count)
 		if err != nil {
+			log.Printf("GetAllUsers scan error: %v", err)
 			return users, err
 		}
 		users = append(users, userRow)
+		count++
+		log.Printf("GetAllUsers: added user %d: %s (count: %d)", userRow.ID, userRow.Username, userRow.Count)
 	}
+
+	log.Printf("GetAllUsers: total users found: %d", count)
 	return users, nil
 }

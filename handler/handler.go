@@ -65,9 +65,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			log.Printf("Пользователь: %s с id: %d, решил посмотреть сколько осталось до великой даты\n",
 				update.Message.From.UserName, update.Message.From.ID)
 			h.handleTime(update)
-			if update.Message.From.ID == adminID {
-				return
-			} else {
+			if update.Message.From.ID != adminID {
 				msg := tgbotapi.NewMessage(adminID,
 					fmt.Sprintf("Пользователь: %s с id: `%d`, решил посмотреть сколько осталось до великой даты\n",
 						update.Message.From.UserName, update.Message.From.ID))
@@ -76,6 +74,11 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			}
 			return
 		case "delete":
+			if !h.isAdmin(update.Message.From.ID) {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
+				h.bot.Send(msg)
+				return
+			}
 			log.Println("Удаление пользователя...")
 
 			userID, err := strconv.Atoi(msgArr[1])
@@ -98,12 +101,26 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 				log.Println("error getAllUsers: ", err)
 			}
 
-			log.Println("Список пользователей:")
-			for _, user := range users {
-				h.sendUser(&user)
+			log.Printf("Total users from DB: %d", len(users))
+
+			// Отправляем одним сообщением
+			var message strings.Builder
+			message.WriteString("📋 Список пользователей:\n\n")
+
+			for i, user := range users {
+				message.WriteString(fmt.Sprintf("%d. ID: %d, Username: @%s, Count: %d\n",
+					i+1, user.ID, user.Username, user.Count))
 			}
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, message.String())
+			h.bot.Send(msg)
 			return
 		case "get":
+			if !h.isAdmin(update.Message.From.ID) {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
+				h.bot.Send(msg)
+				return
+			}
 			userID, err := strconv.Atoi(msgArr[1])
 			if err != nil {
 				log.Println("error converting userID to int", err)
@@ -115,6 +132,11 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			h.sendUser(user)
 			return
 		case "exists":
+			if !h.isAdmin(update.Message.From.ID) {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
+				h.bot.Send(msg)
+				return
+			}
 			userID, err := strconv.Atoi(msgArr[1])
 			if err != nil {
 				log.Println("error converting userID to int", err)
@@ -238,4 +260,8 @@ func (h *Handler) sendUser(user *model.User) {
 		user.Username, user.ID, user.Count))
 	msg.ParseMode = tgbotapi.ModeMarkdownV2
 	h.bot.Send(msg)
+}
+
+func (h *Handler) isAdmin(userID int64) bool {
+	return userID == adminID
 }
