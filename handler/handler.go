@@ -128,6 +128,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 				return
 			}
 			userID, err := strconv.Atoi(msgArr[1])
+			log.Println("userID: ", userID)
 			if err != nil {
 				log.Println("error converting userID to int", err)
 			}
@@ -135,6 +136,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			if err != nil {
 				log.Println("error getUser: ", err)
 			}
+			log.Printf("Пользователь: %s с id: %d, имеет счетчик: %d\n", user.Username, user.ID, user.Count)
 			h.sendUser(user)
 			return
 		case "exists":
