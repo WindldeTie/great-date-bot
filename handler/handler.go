@@ -189,6 +189,9 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update, adminID int64) {
 				msg := tgbotapi.NewMessage(user.ID, text)
 				h.bot.Send(msg)
 			}
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Сообщение отправлено всем пользователям")
+			h.bot.Send(msg)
+			return
 		case "chat":
 			if !h.isAdmin(update.Message.From.ID, adminID) {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
@@ -202,6 +205,10 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update, adminID int64) {
 			text := strings.Join(msgArr[2:], " ")
 			msg := tgbotapi.NewMessage(int64(userID), text)
 			h.bot.Send(msg)
+
+			msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Сообщение отправлено пользователю")
+			h.bot.Send(msg)
+			return
 		default:
 			log.Printf("Пользователь: %s с id: `%d`, решил написать: %s\n",
 				update.Message.From.UserName, update.Message.From.ID, update.Message.Text)
