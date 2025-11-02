@@ -8,9 +8,7 @@ import (
 	"greateDateBot/handler"
 	"greateDateBot/handler/repo"
 	"log"
-	"net/http"
 	"os"
-	"os/signal"
 	"strings"
 	"time"
 )
@@ -30,7 +28,9 @@ func main() {
 
 	// Создание репозитория и запуск бота
 	userRepo := repo.NewRepo(db)
-	startBot(bot, userRepo)
+	bot.Request(tgbotapi.DeleteWebhookConfig{DropPendingUpdates: true})
+
+	handler.NewHandler(bot, userRepo).Start(false)
 }
 
 func initDatabase() *pgxpool.Pool {
@@ -72,68 +72,4 @@ func initBot() *tgbotapi.BotAPI {
 
 	log.Printf("✅ Authorized as @%s", bot.Self.UserName)
 	return bot
-}
-
-func startBot(bot *tgbotapi.BotAPI, userRepo *repo.Repo) {
-	port := getPort()
-	webhookURL := os.Getenv("RAILWAY_STATIC_URL")
-
-	if webhookURL == "" {
-		startPolling(bot, userRepo)
-	} else {
-		startWebhook(bot, userRepo, webhookURL, port)
-	}
-}
-
-func startPolling(bot *tgbotapi.BotAPI, userRepo *repo.Repo) {
-	log.Println("🚀 Starting in POLLING mode (development)")
-	bot.Request(tgbotapi.DeleteWebhookConfig{DropPendingUpdates: true})
-
-	handler.NewHandler(bot, userRepo).Start(false)
-}
-
-func startWebhook(bot *tgbotapi.BotAPI, userRepo *repo.Repo, webhookURL, port string) {
-	log.Printf("🚀 Starting in WEBHOOK mode: %s", webhookURL)
-
-	// Настройка webhook
-	webhookConfig, err := tgbotapi.NewWebhook(webhookURL + "/webhook")
-	if err != nil {
-		log.Panicf("Webhook creation failed: %v", err)
-	}
-	bot.Request(webhookConfig)
-
-	// Запуск HTTP сервера
-	updates := bot.ListenForWebhook("/webhook")
-	go func() {
-		log.Printf("🌐 HTTP server listening on port %s", port)
-		log.Fatal(http.ListenAndServe(":"+port, nil))
-	}()
-
-	// Обработка сигналов завершения
-	setupGracefulShutdown()
-
-	// Обработка обновлений
-	botHandler := handler.NewHandler(bot, userRepo)
-	log.Println("✅ Bot is running and ready")
-
-	for update := range updates {
-		botHandler.HandleUpdate(update)
-	}
-}
-
-func getPort() string {
-	if port := os.Getenv("PORT"); port != "" {
-		return port
-	}
-	return "8080"
-}
-
-func setupGracefulShutdown() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		<-c
-		log.Println("🛑 Shutting down...")
-		os.Exit(0)
-	}()
 }
