@@ -8,12 +8,11 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"greateDateBot/model"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 )
-
-const adminID = int64(5120614747)
 
 type userRepository interface {
 	CreateUser(ctx context.Context, username string, id int64) error
@@ -43,16 +42,21 @@ func (h *Handler) Start(debug bool) {
 	u.Timeout = 60
 	h.bot.Debug = debug
 	updates := h.bot.GetUpdatesChan(u)
+	admin, err := strconv.Atoi(os.Getenv("ADMIN_ID"))
+	if err != nil {
+		log.Println(err)
+	}
+	adminID := int64(admin)
 	// go h.console()
 
 	for update := range updates {
-		h.HandleUpdate(update)
+		h.HandleUpdate(update, adminID)
 	}
 }
 
 // Обработка команд --------------------------------------------------------------------------------------------------
 
-func (h *Handler) HandleUpdate(update tgbotapi.Update) {
+func (h *Handler) HandleUpdate(update tgbotapi.Update, adminID int64) {
 	if update.Message != nil {
 		// h.forwardToAdmin(update)
 		command := strings.TrimSpace(update.Message.Text)
@@ -74,7 +78,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			}
 			return
 		case "delete":
-			if !h.isAdmin(update.Message.From.ID) {
+			if !h.isAdmin(update.Message.From.ID, adminID) {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
 				h.bot.Send(msg)
 				return
@@ -96,7 +100,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			h.bot.Send(msg)
 			return
 		case "list":
-			if !h.isAdmin(update.Message.From.ID) {
+			if !h.isAdmin(update.Message.From.ID, adminID) {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
 				h.bot.Send(msg)
 				return
@@ -122,7 +126,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			h.bot.Send(msg)
 			return
 		case "get":
-			if !h.isAdmin(update.Message.From.ID) {
+			if !h.isAdmin(update.Message.From.ID, adminID) {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
 				h.bot.Send(msg)
 				return
@@ -135,7 +139,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 					log.Println("error getUserByName: ", err)
 					return
 				}
-				log.Printf("Пользователь: %s с id: %d, имеет счетчик: %d\n", user.Username, user.ID, user.Count)
+				log.Printf("Пользователь: @%s с id: %d, имеет счетчик: %d\n", user.Username, user.ID, user.Count)
 				h.sendUser(user)
 				return
 			}
@@ -148,7 +152,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 			h.sendUser(user)
 			return
 		case "exists":
-			if !h.isAdmin(update.Message.From.ID) {
+			if !h.isAdmin(update.Message.From.ID, adminID) {
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
 				h.bot.Send(msg)
 				return
@@ -170,11 +174,43 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update) {
 				h.bot.Send(msg)
 			}
 			return
+		case "send":
+			if !h.isAdmin(update.Message.From.ID, adminID) {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
+				h.bot.Send(msg)
+				return
+			}
+			text := strings.Join(msgArr[1:], " ")
+			users, err := h.userRepo.GetAllUsers(context.Background())
+			if err != nil {
+				log.Println("error getAllUsers: ", err)
+			}
+			for _, user := range users {
+				msg := tgbotapi.NewMessage(user.ID, text)
+				h.bot.Send(msg)
+			}
+		case "chat":
+			if !h.isAdmin(update.Message.From.ID, adminID) {
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "❌ Команда доступна только администратору")
+				h.bot.Send(msg)
+				return
+			}
+			userID, err := strconv.Atoi(msgArr[1])
+			if err != nil {
+				log.Println("error converting userID to int", err)
+			}
+			text := strings.Join(msgArr[2:], " ")
+			msg := tgbotapi.NewMessage(int64(userID), text)
+			h.bot.Send(msg)
 		default:
 			log.Printf("Пользователь: %s с id: `%d`, решил написать: %s\n",
 				update.Message.From.UserName, update.Message.From.ID, update.Message.Text)
 			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Неизвестная команда")
-			msg.ParseMode = tgbotapi.ModeMarkdownV2
+			h.bot.Send(msg)
+
+			msg = tgbotapi.NewMessage(adminID, fmt.Sprintf("Пользователь: @%s с id: <code>%d</code>, решил написать: %s\n",
+				update.Message.From.UserName, update.Message.From.ID, update.Message.Text))
+			msg.ParseMode = tgbotapi.ModeHTML
 			h.bot.Send(msg)
 			return
 		}
@@ -272,6 +308,12 @@ func formatDuration(d time.Duration) string {
 }
 
 func (h *Handler) sendUser(user *model.User) {
+	admin, err := strconv.Atoi(os.Getenv("ADMIN_ID"))
+	if err != nil {
+		log.Println(err)
+	}
+	adminID := int64(admin)
+
 	msg := tgbotapi.NewMessage(adminID,
 		fmt.Sprintf("username: @%s\nid: <code>%d</code>\ncount: %d",
 			user.Username, user.ID, user.Count))
@@ -279,6 +321,6 @@ func (h *Handler) sendUser(user *model.User) {
 	h.bot.Send(msg)
 }
 
-func (h *Handler) isAdmin(userID int64) bool {
+func (h *Handler) isAdmin(userID, adminID int64) bool {
 	return userID == adminID
 }
