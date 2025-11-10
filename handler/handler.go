@@ -206,7 +206,7 @@ func (h *Handler) HandleUpdate(update tgbotapi.Update, adminID int64) {
 			msg := tgbotapi.NewMessage(int64(userID), text)
 			h.bot.Send(msg)
 
-			msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Сообщение отправлено пользователю")
+			msg = tgbotapi.NewMessage(adminID, "Сообщение отправлено пользователю")
 			h.bot.Send(msg)
 			return
 		default:
