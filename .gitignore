@@ -1,0 +1,4 @@
+.env
+handler/usefulFuncs.go
+.idea
+build
